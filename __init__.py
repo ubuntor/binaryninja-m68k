@@ -1607,7 +1607,9 @@ class M68000(Architecture):
             length = 2+extra_source
         elif operation_code == 0xa:
             # (unassigned, reserved)
-            pass
+            instr = 'syscall'
+            source = OpImmediate(SIZE_WORD, struct.unpack_from('>H', data, 0)[0])
+            length = 2
         elif operation_code == 0xb:
             # CMP/EOR
             instr = 'cmp'
