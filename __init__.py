@@ -32,6 +32,7 @@ from binaryninja.architecture import Architecture
 from binaryninja.lowlevelil import LowLevelILLabel, LLIL_TEMP
 from binaryninja.function import RegisterInfo, InstructionInfo, InstructionTextToken
 from binaryninja.binaryview import BinaryView
+from binaryninja.callingconvention import CallingConvention
 from binaryninja.plugin import PluginCommand
 from binaryninja.interaction import AddressField, ChoiceField, get_form_input
 from binaryninja.types import Symbol
@@ -40,6 +41,7 @@ from binaryninja.enums import (Endianness, BranchType, InstructionTextTokenType,
         LowLevelILOperation, LowLevelILFlagCondition, FlagRole, SegmentFlag,
         ImplicitRegisterExtend, SymbolType)
 from binaryninja import BinaryViewType
+from .syscalls import SYSCALLS
 
 # Shift syles
 SHIFT_SYLE_ARITHMETIC = 0,
@@ -3226,6 +3228,10 @@ class M68000(Architecture):
                 tokens += [InstructionTextToken(InstructionTextTokenType.OperandSeparatorToken, ',')]
             tokens += third.format(addr)
 
+        # TODO: hack
+        if instr == 'syscall' and source.value in SYSCALLS:
+            tokens += [InstructionTextToken(InstructionTextTokenType.TextToken, " "+SYSCALLS[source.value])]
+
         return tokens, length
 
     def perform_get_instruction_low_level_il(self, data, addr, il):
@@ -3594,5 +3600,14 @@ M68LC040.register()
 M68EC040.register()
 M68330.register()
 M68340.register()
+
+class CCallingConvention(CallingConvention):
+    name = "C"
+    int_arg_regs = []
+    int_return_reg = 'd0'
+
+arch = Architecture['M68000']
+arch.register_calling_convention(CCallingConvention(arch, 'c'))
+arch.standalone_platform.default_calling_convention = arch.calling_conventions['c'] # ???
 
 BinaryViewType['ELF'].register_arch(4, Endianness.BigEndian, Architecture['M68030'])
