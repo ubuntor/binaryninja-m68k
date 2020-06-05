@@ -29,19 +29,20 @@ import traceback
 import os
 
 from binaryninja.architecture import Architecture
-from binaryninja.lowlevelil import LowLevelILLabel, LLIL_TEMP
-from binaryninja.function import RegisterInfo, InstructionInfo, InstructionTextToken
+from binaryninja.lowlevelil import LowLevelILLabel, LLIL_TEMP, ILRegister
+from binaryninja.function import (RegisterInfo, IntrinsicInfo, IntrinsicInput,
+        InstructionInfo, InstructionTextToken)
 from binaryninja.binaryview import BinaryView
 from binaryninja.callingconvention import CallingConvention
 from binaryninja.plugin import PluginCommand
 from binaryninja.interaction import AddressField, ChoiceField, get_form_input
-from binaryninja.types import Symbol
+from binaryninja.types import Symbol, Type
 from binaryninja.log import log_error
 from binaryninja.enums import (Endianness, BranchType, InstructionTextTokenType,
         LowLevelILOperation, LowLevelILFlagCondition, FlagRole, SegmentFlag,
         ImplicitRegisterExtend, SymbolType)
 from binaryninja import BinaryViewType
-from .syscalls import SYSCALLS
+from .syscalls import SYSCALLS, FP68K_TYPES, FP68K_OPS
 
 # Shift syles
 SHIFT_SYLE_ARITHMETIC = 0,
@@ -202,15 +203,16 @@ class OpRegisterDirect:
             return None
         else:
             # return il.set_reg(1 << self.size, self.reg, value)
-            # if self.size == SIZE_BYTE:
-            #     if self.reg[0] == 'a' or self.reg == 'sp':
-            #         return None
-            #     else:
-            #         return il.set_reg(1, self.reg+'.b', value, flags)
-            # elif self.size == SIZE_WORD:
-            #     return il.set_reg(2, self.reg+'.w', value, flags)
-            # else:
-            #     return il.set_reg(4, self.reg, value, flags)
+            if self.size == SIZE_BYTE:
+                if self.reg[0] == 'a' or self.reg == 'sp':
+                    return None
+                else:
+                    return il.set_reg(1, self.reg+'.b', value, flags)
+            elif self.size == SIZE_WORD:
+                return il.set_reg(2, self.reg+'.w', value, flags)
+            else:
+                return il.set_reg(4, self.reg, value, flags)
+            '''
             if self.size == SIZE_BYTE:
                 if self.reg[0] == 'a' or self.reg == 'sp':
                     return None
@@ -223,6 +225,7 @@ class OpRegisterDirect:
                     return il.set_reg(4, self.reg, il.or_expr(4, il.and_expr(4, il.const(4, 0xffff0000), il.reg(4, self.reg)), il.and_expr(4, il.const(4, 0xffff), value)), flags)
             else:
                 return il.set_reg(4, self.reg, value, flags)
+            '''
 
 
 class OpRegisterDirectPair:
@@ -871,7 +874,36 @@ class M68000(Architecture):
         'a5':    RegisterInfo('a5', 4, extend=ImplicitRegisterExtend.SignExtendToFullWidth),
         'a6':    RegisterInfo('a6', 4, extend=ImplicitRegisterExtend.SignExtendToFullWidth),
         'sp':    RegisterInfo('sp', 4, extend=ImplicitRegisterExtend.SignExtendToFullWidth),
-
+        'd0.w':  RegisterInfo('d0', 2),
+        'd1.w':  RegisterInfo('d1', 2),
+        'd2.w':  RegisterInfo('d2', 2),
+        'd3.w':  RegisterInfo('d3', 2),
+        'd4.w':  RegisterInfo('d4', 2),
+        'd5.w':  RegisterInfo('d5', 2),
+        'd6.w':  RegisterInfo('d6', 2),
+        'd7.w':  RegisterInfo('d7', 2),
+        'd0.b':  RegisterInfo('d0', 1),
+        'd1.b':  RegisterInfo('d1', 1),
+        'd2.b':  RegisterInfo('d2', 1),
+        'd3.b':  RegisterInfo('d3', 1),
+        'd4.b':  RegisterInfo('d4', 1),
+        'd5.b':  RegisterInfo('d5', 1),
+        'd6.b':  RegisterInfo('d6', 1),
+        'd7.b':  RegisterInfo('d7', 1),
+        'a0.w':  RegisterInfo('a0', 2),
+        'a1.w':  RegisterInfo('a1', 2),
+        'a2.w':  RegisterInfo('a2', 2),
+        'a3.w':  RegisterInfo('a3', 2),
+        'a4.w':  RegisterInfo('a4', 2),
+        'a5.w':  RegisterInfo('a5', 2),
+        'a6.w':  RegisterInfo('a6', 2),
+        'a0.b':  RegisterInfo('a0', 1),
+        'a1.b':  RegisterInfo('a1', 1),
+        'a2.b':  RegisterInfo('a2', 1),
+        'a3.b':  RegisterInfo('a3', 1),
+        'a4.b':  RegisterInfo('a4', 1),
+        'a5.b':  RegisterInfo('a5', 1),
+        'a6.b':  RegisterInfo('a6', 1),
         'sr':    RegisterInfo('sr', 2),
         'ccr':   RegisterInfo('sr', 1),
 
@@ -935,6 +967,13 @@ class M68000(Architecture):
     }
     memory_indirect = False
     movem_store_decremented = False
+    # TODO: actual types
+    intrinsics = {
+        '_GetResource': IntrinsicInfo([IntrinsicInput(Type.int(4)), IntrinsicInput(Type.int(2))], [Type.int(4)]),
+        '_GetTrapAddress': IntrinsicInfo([IntrinsicInput(Type.int(4)), IntrinsicInput(Type.int(2))], [Type.int(4)]),
+        '_SetTrapAddress': IntrinsicInfo([IntrinsicInput(Type.int(4)), IntrinsicInput(Type.int(2))], []),
+        '_GetHandleSize': IntrinsicInfo([IntrinsicInput(Type.int(4))], [Type.int(4)])
+    }
 
     def decode_effective_address(self, mode, register, data, size=None):
         mode &= 0x07
@@ -1609,8 +1648,12 @@ class M68000(Architecture):
             length = 2+extra_source
         elif operation_code == 0xa:
             # (unassigned, reserved)
-            instr = 'syscall'
-            source = OpImmediate(SIZE_WORD, struct.unpack_from('>H', data, 0)[0])
+            syscall_val = struct.unpack_from('>H', data, 0)[0]
+            if syscall_val in SYSCALLS:
+                instr = '_'+SYSCALLS[syscall_val]
+            else:
+                instr = 'syscall'
+                source = OpImmediate(SIZE_WORD, syscall_val)
             length = 2
         elif operation_code == 0xb:
             # CMP/EOR
@@ -1852,8 +1895,8 @@ class M68000(Architecture):
             il.append(
                 dest.get_dest_il(il,
                     il.sub(size_bytes,
-                        source.get_source_il(il),
                         dest.get_source_il(il),
+                        source.get_source_il(il),
                         flags='*'
                     )
                 )
@@ -3137,10 +3180,22 @@ class M68000(Architecture):
 
                 if not skip_label_found:
                     il.mark_label(skip)
-        elif instr in ('trap', 'illegal', 'bkpt'):
+        elif instr in ('trap', 'illegal', 'bkpt', 'syscall'):
             il.append(il.system_call())
         elif instr in ('bgnd', 'nop', 'reset', 'stop'):
             il.append(il.nop())
+        elif instr[0] == '_' and instr == '_GetResource':
+            temp = LLIL_TEMP(0)
+            il.append(il.intrinsic([ILRegister(il.arch, temp)], instr, [il.pop(2), il.pop(4)]))
+            il.append(il.store(4, il.reg(4, 'sp'), il.reg(4, temp)))
+        elif instr[0] == '_' and instr == '_GetTrapAddress':
+            il.append(il.intrinsic([il.reg(4, 'a0')], instr, [il.reg(2, 'd0.w')]))
+        elif instr[0] == '_' and instr == '_SetTrapAddress':
+            il.append(il.intrinsic([], instr, [il.reg(4, 'a0'), il.reg(2, 'd0.w')]))
+        elif instr[0] == '_' and instr == '_GetHandleSize':
+            il.append(il.intrinsic([il.reg(4, 'd0')], instr, [il.reg(4, 'a0')]))
+        elif instr[0] == '_' and instr in ['_ExitToShell', '_SysError']:
+            il.append(il.no_ret())
         else:
             il.append(il.unimplemented())
 
@@ -3227,10 +3282,6 @@ class M68000(Architecture):
             if source is not None or dest is not None:
                 tokens += [InstructionTextToken(InstructionTextTokenType.OperandSeparatorToken, ',')]
             tokens += third.format(addr)
-
-        # TODO: hack
-        if instr == 'syscall' and source.value in SYSCALLS:
-            tokens += [InstructionTextToken(InstructionTextTokenType.TextToken, " "+SYSCALLS[source.value])]
 
         return tokens, length
 
