@@ -1,0 +1,1196 @@
+# STORAGE ::= "[" stack_addr "]:" size | register
+# RETURN ::= type | "void"
+# PARAM ::= type " " name
+# CC_PASCAL ::= RETURN {"," PARAM}
+# RETURN_CUSTOM ::= type "@" STORAGE | "void"
+# PARAM_CUSTOM ::= type " " name "@" STORAGE
+# CC_CUSTOM ::= RETURN_CUSTOM {"," PARAM_CUSTOM}
+# SYSCALL ::= syscall_num "," name ["," ("pascal" "," CC_PASCAL | "custom" "," CC_CUSTOM)] ["," "noreturn"]
+# Warning: only basic builtin datatypes supported for now (no type*, type[], etc.)
+# Warning: all "out" params are wrong
+#   the decompiler (as of ghidra 9.1.2) doesn't show the return value when the
+#   storage for the return value is on the stack
+#   adding the out param makes it show up in the decompiler, but it uses the
+#   value, not the address
+# Calling conventions:
+#   pascal: params pushed left-to-right, callee cleanup, return value stored beyond params
+#   custom: custom storage
+0xa000, _Open
+0xa001, _Close
+0xa002, _Read
+0xa003, _Write
+0xa004, _Control
+0xa005, _Status
+0xa006, _KillIO
+0xa007, _GetVolInfo
+0xa008, _Create
+0xa009, _Delete
+0xa00a, _OpenRF
+0xa00b, _Rename
+0xa00c, _GetFileInfo
+0xa00d, _SetFileInfo
+0xa00e, _UnmountVol
+0xa00f, _MountVol
+0xa010, _Allocate
+0xa011, _GetEOF
+0xa012, _SetEOF
+0xa013, _FlushVol
+0xa014, _GetVol
+0xa015, _SetVol
+0xa016, _FInitQueue
+0xa017, _Eject
+0xa018, _GetFPos
+0xa019, _InitZone
+0xa01b, _SetZone
+0xa01c, _FreeMem
+0xa01f, _DisposePtr
+0xa020, _SetPtrSize
+0xa021, _GetPtrSize
+0xa023, _DisposeHandle, custom, void, pointer handle @ A0
+0xa024, _SetHandleSize
+0xa025, _GetHandleSize, custom, dword @ D0, pointer handle @ A0
+0xa027, _ReallocHandle
+0xa029, _HLock, custom, void, pointer handle @ A0
+0xa02a, _HUnlock, custom, void, pointer handle @ A0
+0xa02b, _EmptyHandle
+0xa02c, _InitApplZone
+0xa02d, _SetApplLimit
+0xa02e, _BlockMove, custom, dword @ D0, pointer src @ A0, pointer dst @ A1, dword size @ D0
+0xa02f, _PostEvent
+0xa030, _OSEventAvail
+0xa031, _GetOSEvent
+0xa032, _FlushEvents
+0xa033, _VInstall
+0xa034, _VRemove
+0xa035, _OffLine
+0xa036, _MoreMasters
+0xa037, _ReadParam
+0xa038, _WriteParam
+0xa039, _ReadDateTime
+0xa03a, _SetDateTime
+0xa03b, _Delay, custom, dword @ D0, dword ticks @ A0
+0xa03c, _CmpString
+0xa03d, _DrvrInstall
+0xa03e, _DrvrRemove
+0xa03f, _InitUtil
+0xa040, _ResrvMem
+0xa041, _SetFilLock
+0xa042, _RstFilLock
+0xa043, _SetFilType
+0xa044, _SetFPos
+0xa045, _FlushFile
+0xa047, _SetTrapAddress, custom, void, pointer trapAddr @ A0, word trapNum @ D0w
+0xa049, _HPurge, custom, void, pointer handle @ A0
+0xa04a, _HNoPurge, custom, void, pointer handle @ A0
+0xa04b, _SetGrowZone
+0xa04c, _CompactMem
+0xa04d, _PurgeMem
+0xa04e, _AddDrive
+0xa04f, _RDrvrInstall
+0xa050, _CompareString
+0xa051, _ReadXPRam
+0xa052, _WriteXPRam
+0xa054, _UprString
+0xa055, _StripAddress, custom, pointer @ D0, pointer addr @ D0
+0xa056, _LowerText
+0xa057, _SetApplBase
+0xa058, _InsTime
+0xa059, _RmvTime
+0xa05a, _PrimeTime
+0xa05b, _PowerOff
+0xa05c, _MemoryDispatch
+0xa05d, _SwapMMUMode
+0xa05e, _NMInstall
+0xa05f, _NMRemove
+0xa060, _FSDispatch
+0xa061, _MaxBlock
+0xa063, _MaxApplZone
+0xa064, _MoveHHi, custom, dword @ D0, pointer handle @ A0
+0xa065, _StackSpace
+0xa067, _HSetRBit, custom, void, pointer handle @ A0
+0xa068, _HClrRBit, custom, void, pointer handle @ A0
+0xa069, _HGetState, custom, byte @ D0b, pointer handle @ A0
+0xa06a, _HSetState
+0xa06b, _TestManager
+0xa06c, _InitFS
+0xa06d, _InitEvents
+0xa06e, _SlotManager
+0xa06f, _SlotVInstall
+0xa070, _SlotVRemove
+0xa071, _AttachVBL
+0xa072, _DoVBLTask
+0xa073, _OSReserved
+0xa074, _CacheMgr
+0xa075, _SIntInstall
+0xa076, _SIntRemove
+0xa077, _CountADBs
+0xa078, _GetIndADB
+0xa079, _GetADBInfo
+0xa07a, _SetADBInfo
+0xa07b, _ADBReInit
+0xa07c, _ADBOp
+0xa07d, _GetDefaultStartup
+0xa07e, _SetDefaultStartup
+0xa07f, _InternalWait
+0xa080, _GetVideoDefault
+0xa081, _SetVideoDefault
+0xa082, _DTInstall
+0xa083, _SetOSDefault
+0xa084, _GetOSDefault
+0xa085, _PMgrOp
+0xa086, _IOPInfoAccess
+0xa087, _IOPMsgRequest
+0xa088, _IOPMoveData
+0xa089, _SCSIAtomic
+0xa08a, _Sleep
+0xa08b, _CommToolboxDispatch
+0xa08c, _Wakeup
+0xa08d, _DebugUtil
+0xa08e, _BTreeDispatch
+0xa08f, _DeferUserFn
+0xa090, _SysEnvirons
+0xa091, _Translate24To32
+0xa092, _EgretDispatch
+0xa093, _Microseconds
+0xa094, _ServerDispatch
+0xa095, _POGOMPW
+0xa096, _SharedLibsMPW
+0xa097, _FPPriv
+0xa099, _XToolTable
+0xa09a, _vProcHelper
+0xa09b, _Messager
+0xa09c, _NewPtrStartup
+0xa09d, _MoveHLow
+0xa09e, _PowerMgrDispatch
+0xa09f, _PowerDispatch
+0xa0a0, _vMRdAddr
+0xa0a1, _vMRdData
+0xa0a2, _vMWrData
+0xa0a4, _HeapDispatch
+0xa0a5, _VisRegionChanged
+0xa0a6, _vStdEntry
+0xa0a7, _vStdExit
+0xa0ac, _FSM
+0xa0ae, _vADBProc
+0xa0af, _vMtCheck
+0xa0b0, _vCheckReMount
+0xa0b1, _vDtrmV2
+0xa0b2, _vFindDrive
+0xa0b3, _vFClose
+0xa0b4, _vFlushMDB
+0xa0b5, _vGoDriver
+0xa0b6, _vWaitUntil
+0xa0b7, _vSyncWait
+0xa0b8, _vSoundDead
+0xa0b9, _vDisptch
+0xa0ba, _vIAZInit
+0xa0bb, _vIAZPostInit
+0xa0bc, _vLaunchInit
+0xa0bd, _vCacheFlush
+0xa0be, _vSysUtil
+0xa0bf, _vLg2Phys
+0xa0c0, _vFlushCache
+0xa0c1, _vGetBlock
+0xa0c2, _vMarkBlock
+0xa0c3, _vRelBlock
+0xa0c4, _vTrashBlocks
+0xa0c5, _vTrashVBlks
+0xa0c6, _vCacheWrIP
+0xa0c7, _vCacheRdIP
+0xa0c8, _vBasicIO
+0xa0c9, _vRdBlocks
+0xa0ca, _vWrBlocks
+0xa0cb, _vSetUpTags
+0xa0cc, _vBTClose
+0xa0cd, _vBTDelete
+0xa0ce, _vBTFlush
+0xa0cf, _vBTGetRecord
+0xa0d0, _vBTInsert
+0xa0d1, _vBTOpen
+0xa0d2, _vBTSearch
+0xa0d3, _vBTUpdate
+0xa0d4, _vGetNode
+0xa0d5, _vRelNode
+0xa0d6, _vAllocNode
+0xa0d7, _vFreeNode
+0xa0d8, _vExtBTFile
+0xa0d9, _vDeallocFile
+0xa0da, _vExtendFile
+0xa0db, _vTruncateFile
+0xa0dc, _vCMSetup
+0xa0dd, _PPC
+0xa0de, _vDtrmV1
+0xa0df, _vBlkAlloc
+0xa0e0, _vBlkDeAlloc
+0xa0e1, _vFileOpen
+0xa0e2, _vPermssnChk
+0xa0e3, _vFndFilName
+0xa0e4, _vRfNCall
+0xa0e5, _vAdjEOF
+0xa0e6, _vPixel2Char
+0xa0e7, _vChar2Pixel
+0xa0e8, _vHiliteText
+0xa0e9, _vFileClose
+0xa0ea, _vFileRead
+0xa0eb, _vFileWrite
+0xa0ec, _DispatchHelper
+0xa0ed, _vUpdAltMDB
+0xa0ee, _vCkExtFS
+0xa0ef, _vDtrmV3
+0xa0f0, _vBMChk
+0xa0f1, _vTstMod
+0xa0f2, _vLocCRec
+0xa0f3, _vTreeSearch
+0xa0f4, _vMapFBlock
+0xa0f5, _vXFSearch
+0xa0f6, _vReadBM
+0xa0f7, _vDoEject
+0xa0f8, _vSegStack
+0xa0f9, _vSuperLoad
+0xa0fa, _vCmpFrm
+0xa0fb, _vNewMap
+0xa0fc, _vCheckLoad
+0xa0fd, _XTrimMeasure
+0xa0fe, _XFindWord
+0xa0ff, _XFindLine
+0xa11a, _GetZone
+0xa11d, _MaxMem
+# also outputs result code in D0...
+0xa11e, _NewPtr, custom, pointer @ A0, dword size @ D0
+# also outputs result code in D0...
+0xa122, _NewHandle, custom, pointer @ A0, dword size @ A0
+0xa126, _HandleZone
+0xa128, _RecoverHandle
+0xa12f, _PPostEvent
+0xa13d, _DrvrInstall
+0xa146, _GetTrapAddress, custom, pointer @ A0, word trapNum @ D0w
+0xa148, _PtrZone
+0xa15c, _MemoryDispatch
+0xa162, _PurgeSpace
+0xa166, _NewEmptyHandle
+0xa193, _Microseconds
+0xa198, _HWPriv
+0xa1ad, _Gestalt
+0xa200, _HOpen
+0xa207, _HGetVInfo
+0xa208, _HCreate
+0xa209, _HDelete
+0xa20a, _HOpenRF
+0xa20b, _HRename
+0xa20c, _HGetFileInfo
+0xa20d, _HSetFileInfo
+0xa20e, _HUnmountVol
+0xa210, _AllocContig
+0xa214, _HGetVol
+0xa215, _HSetVol
+0xa22e, _BlockMoveData
+0xa241, _HSetFLock
+0xa242, _HRstFLock
+0xa247, _SetOSTrapAddress
+0xa256, _StripText
+0xa260, _HFSDispatch
+0xa285, _IdleUpdate
+0xa28a, _SleepQInstall
+0xa31e, _NewPtrClear, custom, pointer @ A0, dword size @ D0
+0xa322, _NewHandleClear
+0xa346, _GetOSTrapAddress, custom, pointer @ A0, word trapNum @ D0w
+0xa3ad, _NewGestalt
+0xa43d, _DrvrInstallRsrvMem
+0xa456, _UpperText
+0xa458, _InsXTime
+0xa485, _IdleState
+0xa48a, _SleepQRemove
+0xa51e, _NewPtrSys, custom, pointer @ A0, dword size @ D0
+0xa522, _NewHandleSys
+0xa53d, _DrvrInstallRsrvMem
+0xa562, _PurgeSpaceSys
+0xa5ad, _ReplaceGestalt
+0xa647, _SetToolBoxTrapAddress
+0xa656, _StripUpperText
+0xa685, _SerialPower
+0xa71e, _NewPtrSysClear, custom, pointer @ A0, dword size @ D0
+0xa722, _NewHandleSysClear
+0xa746, _GetToolTrapAddress, custom, pointer @ A0, word trapNum @ D0w
+0xa7ad, _GetGestaltProcPtr
+0xa800, _SoundDispatch
+0xa801, _SndDisposeChannel
+0xa802, _SndAddModifier
+0xa803, _SndDoCommand
+0xa804, _SndDoImmediate
+0xa805, _SndPlay
+0xa806, _SndControl
+0xa807, _SndNewChannel
+0xa808, _InitProcMenu
+0xa809, _GetControlVariant
+0xa80a, _GetWVariant
+0xa80b, _PopUpMenuSelect
+0xa80c, _RGetResource
+0xa80d, _Count1Resources
+0xa80e, _Get1IxResource
+0xa80f, _Get1IxType
+0xa810, _Unique1ID
+0xa811, _TESelView
+0xa812, _TEPinScroll
+0xa813, _TEAutoView
+0xa814, _SetFractEnable
+0xa815, _SCSIDispatch
+0xa816, _Pack8
+0xa817, _CopyMask
+0xa818, _FixATan2
+0xa819, _XMunger
+0xa81a, _HOpenResFile
+0xa81b, _HCreateResFile
+0xa81c, _Count1Types
+0xa81d, _InvalMenuBar
+0xa81e, _SaveRestoreBits
+0xa81f, _Get1Resource, pascal, out4, dword rsrcType, word rsrcIdx
+0xa820, _Get1NamedResource, pascal, out4, dword rsrcType, pointer name
+0xa821, _MaxSizeRsrc
+0xa822, _ResourceDispatch
+0xa823, _AliasDispatch
+0xa824, _FSMgr
+0xa825, _MenuDispatch
+0xa826, _InsertMenuItem
+0xa827, _HideDialogItem
+0xa828, _ShowDialogItem
+0xa829, _LayerDispatch
+0xa82a, _ComponentDispatch
+0xa82b, _Pack9
+0xa82c, _Pack10
+0xa82d, _Pack11
+0xa82e, _Pack12
+0xa82f, _Pack13
+0xa830, _Pack14
+0xa831, _Pack15
+0xa832, _QuickDrawGX
+0xa833, _ScrnBitMap
+0xa834, _SetFScaleDisable
+0xa835, _FontMetrics
+0xa836, _GetMaskTable
+0xa837, _MeasureText
+0xa838, _CalcMask
+0xa839, _SeedFill
+0xa83a, _ZoomWindow
+0xa83b, _TrackBox
+0xa83c, _TEGetOffset
+0xa83d, _TEDispatch
+0xa83e, _TEStyleNew
+0xa83f, _Long2Fix
+0xa840, _Fix2Long
+0xa841, _Fix2Frac
+0xa842, _Frac2Fix
+0xa843, _Fix2X
+0xa844, _X2Fix
+0xa845, _Frac2X
+0xa846, _X2Frac
+0xa847, _FracCos
+0xa848, _FracSin
+0xa849, _FracSqrt
+0xa84a, _FracMul
+0xa84b, _FracDiv
+0xa84c, _UserDelay
+0xa84d, _FixDiv
+0xa84e, _GetItemCmd
+0xa84f, _SetItemCmd
+0xa850, _InitCursor, custom, void
+0xa851, _SetCursor
+0xa852, _HideCursor
+0xa853, _ShowCursor
+0xa854, _FontDispatch
+0xa855, _ShieldCursor
+0xa856, _ObscureCursor
+0xa857, _SetEntry
+0xa858, _BitAnd
+0xa859, _BitXOr
+0xa85a, _BitNot
+0xa85b, _BitOr
+0xa85c, _BitShift
+0xa85d, _BitTst
+0xa85e, _BitSet
+0xa85f, _BitClr
+0xa860, _WaitNextEvent
+0xa861, _Random, pascal, out2
+0xa862, _ForeColor
+0xa863, _BackColor
+0xa864, _ColorBit
+0xa865, _GetPixel
+0xa866, _StuffHex
+0xa867, _LongMul
+0xa868, _FixMul
+0xa869, _FixRatio
+0xa86a, _HiWord
+0xa86b, _LoWord
+0xa86c, _FixRound
+0xa86d, _InitPort, pascal, void, pointer port
+0xa86e, _InitGraf, pascal, void, pointer globalPtr
+0xa86f, _OpenPort, pascal, void, pointer port
+0xa870, _LocalToGlobal, pascal, void, pointer pt
+0xa871, _GlobalToLocal, pascal, void, pointer pt
+0xa872, _GrafDevice
+0xa873, _SetPort, pascal, void, pointer port
+0xa874, _GetPort
+0xa875, _SetPBits
+0xa876, _PortSize
+0xa877, _MovePortTo
+0xa878, _SetOrigin
+0xa879, _SetClip
+0xa87a, _GetClip
+0xa87b, _ClipRect
+0xa87c, _BackPat
+0xa87d, _ClosePort, pascal, void, pointer port
+0xa87e, _AddPt
+0xa87f, _SubPt
+0xa880, _SetPt
+0xa881, _EqualPt, pascal, out1, pointer pt1, pointer pt2
+0xa882, _StdText
+0xa883, _DrawChar, pascal, void, word ch
+0xa884, _DrawString, pascal, void, pointer s
+0xa885, _DrawText
+0xa886, _TextWidth
+0xa887, _TextFont, pascal, void, word font
+0xa888, _TextFace, pascal, void, word face
+0xa889, _TextMode, pascal, void, word mode
+0xa88a, _TextSize, pascal, void, word size
+0xa88b, _GetFontInfo
+0xa88c, _StringWidth, pascal, out2, pointer s
+0xa88d, _CharWidth, pascal, out2, word ch
+0xa88e, _SpaceExtra
+0xa88f, _OSDispatch
+0xa890, _StdLine
+0xa891, _LineTo, pascal, void, word h, word v
+0xa892, _Line, pascal, void, word dh, word dv
+0xa893, _MoveTo, pascal, void, word h, word v
+0xa894, _Move, pascal, void, word dh, word dv
+0xa895, _ShutDown
+0xa896, _HidePen
+0xa897, _ShowPen
+0xa898, _GetPenState
+0xa899, _SetPenState
+0xa89a, _GetPen
+0xa89b, _PenSize, pascal, void, word width, word height
+0xa89c, _PenMode, pascal, void, word mode
+0xa89d, _PenPat, pascal, void, pointer pat
+0xa89e, _PenNormal, custom, void
+0xa89f, _Unimplemented
+0xa8a0, _StdRect
+0xa8a1, _FrameRect, pascal, void, pointer rect
+0xa8a2, _PaintRect, pascal, void, pointer rect
+0xa8a3, _EraseRect, pascal, void, pointer rect
+0xa8a4, _InverRect, pascal, void, pointer rect
+0xa8a5, _FillRect, pascal, void, pointer rect, pointer pat
+0xa8a6, _EqualRect
+0xa8a7, _SetRect
+0xa8a8, _OffsetRect, pascal, void, pointer rect, word dh, word dv
+0xa8a9, _InsetRect, pascal, void, pointer rect, word dh, word dv
+0xa8aa, _SectRect
+0xa8ab, _UnionRect
+0xa8ac, _Pt2Rect
+0xa8ad, _PtInRect
+0xa8ae, _EmptyRect
+0xa8af, _StdRRect
+0xa8b0, _FrameRoundRect, pascal, void, pointer rect, word ovalWidth, word ovalHeight
+0xa8b1, _PaintRoundRect, pascal, void, pointer rect, word ovalWidth, word ovalHeight
+0xa8b2, _EraseRoundRect, pascal, void, pointer rect, word ovalWidth, word ovalHeight
+0xa8b3, _InverRoundRect, pascal, void, pointer rect, word ovalWidth, word ovalHeight
+0xa8b4, _FillRoundRect, pascal, void, pointer rect, word ovalWidth, word ovalHeight, pointer pat
+0xa8b5, _ScriptUtil
+0xa8b6, _StdOval
+0xa8b7, _FrameOval, pascal, void, pointer rect
+0xa8b8, _PaintOval, pascal, void, pointer rect
+0xa8b9, _EraseOval, pascal, void, pointer rect
+0xa8ba, _InvertOval, pascal, void, pointer rect
+0xa8bb, _FillOval, pascal, void, pointer rect, pointer pat
+0xa8bc, _SlopeFromAngle
+0xa8bd, _StdArc
+0xa8be, _FrameArc, pascal, void, pointer rect, word startAngle, word arcAngle
+0xa8bf, _PaintArc, pascal, void, pointer rect, word startAngle, word arcAngle
+0xa8c0, _EraseArc, pascal, void, pointer rect, word startAngle, word arcAngle
+0xa8c1, _InvertArc, pascal, void, pointer rect, word startAngle, word arcAngle
+0xa8c2, _FillArc, pascal, void, pointer rect, word startAngle, word arcAngle, pointer pat
+0xa8c3, _PtToAngle
+0xa8c4, _AngleFromSlope
+0xa8c5, _StdPoly
+0xa8c6, _FramePoly, pascal, void, pointer poly
+0xa8c7, _PaintPoly, pascal, void, pointer poly
+0xa8c8, _ErasePoly, pascal, void, pointer poly
+0xa8c9, _InvertPoly, pascal, void, pointer poly
+0xa8ca, _FillPoly, pascal, void, pointer poly, dword pat
+0xa8cb, _OpenPoly, pascal, out4
+0xa8cc, _ClosePoly, custom, void
+0xa8cd, _KillPoly, pascal, void, pointer poly
+0xa8ce, _OffsetPoly, pascal, void, pointer poly, word dh, word dv
+0xa8cf, _PackBits
+0xa8d0, _UnpackBits
+0xa8d1, _StdRgn
+0xa8d2, _FrameRgn, pascal, void, pointer rgn
+0xa8d3, _PaintRgn, pascal, void, pointer rgn
+0xa8d4, _EraseRgn, pascal, void, pointer rgn
+0xa8d5, _InverRgn, pascal, void, pointer rgn
+0xa8d6, _FillRgn, pascal, void, pointer rgn, dword pat
+0xa8d7, _BitMapToRegion
+0xa8d8, _NewRgn, pascal, out4
+0xa8d9, _DisposeRgn, pascal, void, pointer rgn
+0xa8da, _OpenRgn, custom, void
+0xa8db, _CloseRgn, pascal, void, pointer rgn
+0xa8dc, _CopyRgn, pascal, void, pointer srcRgn, pointer dstRgn
+0xa8dd, _SetEmptyRgn, pascal, void, pointer rgn
+0xa8de, _SetRecRgn, pascal, void, pointer rgn, word left, word top, word right, word bottom
+0xa8df, _RectRgn, pascal, void, pointer rgn, pointer rect
+0xa8e0, _OffsetRgn, pascal, void, pointer rgn, word dh, word dv
+0xa8e1, _InsetRgn, pascal, void, pointer rgn, word dh, word dv
+0xa8e2, _EmptyRgn, pascal, out1, pointer rgn
+0xa8e3, _EqualRgn
+0xa8e4, _SectRgn, pascal, void, pointer srcRgnA, pointer srcRgnB, pointer dstRgn
+0xa8e5, _UnionRgn, pascal, void, pointer srcRgnA, pointer srcRgnB, pointer dstRgn
+0xa8e6, _DiffRgn, pascal, void, pointer srcRgnA, pointer srcRgnB, pointer dstRgn
+0xa8e7, _XOrRgn, pascal, void, pointer srcRgnA, pointer srcRgnB, pointer dstRgn
+0xa8e8, _PtInRgn
+0xa8e9, _RectInRgn
+0xa8ea, _SetStdProcs
+0xa8eb, _StdBits
+0xa8ec, _CopyBits
+0xa8ed, _StdTxMeas
+0xa8ee, _StdGetPic
+0xa8ef, _ScrollRect
+0xa8f0, _StdPutPic
+0xa8f1, _StdComment
+0xa8f2, _PicComment
+0xa8f3, _OpenPicture
+0xa8f4, _ClosePicture, custom, void
+0xa8f5, _KillPicture, pascal, void, pointer picture
+0xa8f6, _DrawPicture, pascal, void, pointer picture, pointer dstRect
+0xa8f7, _Layout
+0xa8f8, _ScalePt
+0xa8f9, _MapPt
+0xa8fa, _MapRect
+0xa8fb, _MapRgn
+0xa8fc, _MapPoly
+0xa8fd, _PrGlue
+0xa8fe, _InitFonts, custom, void
+0xa8ff, _GetFName
+0xa900, _GetFNum
+0xa901, _FMSwapFont
+0xa902, _RealFont
+0xa903, _SetFontLock
+0xa904, _DrawGrowIcon
+0xa905, _DragGrayRgn
+0xa906, _NewString
+0xa907, _SetString
+0xa908, _ShowHide
+0xa909, _CalcVis
+0xa90a, _CalcVBehind
+0xa90b, _ClipAbove
+0xa90c, _PaintOne
+0xa90d, _PaintBehind
+0xa90e, _SaveOld
+0xa90f, _DrawNew
+0xa910, _GetWMgrPort
+0xa911, _CheckUpDate
+0xa912, _InitWindows, custom, void
+0xa913, _NewWindow
+0xa914, _DisposeWindow, pascal, void, pointer window
+0xa915, _ShowWindow, pascal, void, pointer window
+0xa916, _HideWindow, pascal, void, pointer window
+0xa917, _GetWRefCon
+0xa918, _SetWRefCon
+0xa919, _GetWTitle
+0xa91a, _SetWTitle, pascal, void, pointer window, pointer title
+0xa91b, _MoveWindow
+0xa91c, _HiliteWindow
+0xa91d, _SizeWindow
+0xa91e, _TrackGoAway
+0xa91f, _SelectWindow
+0xa920, _BringToFront
+0xa921, _SendBehind
+0xa922, _BeginUpDate
+0xa923, _EndUpDate
+0xa924, _FrontWindow
+0xa925, _DragWindow
+0xa926, _DragTheRgn
+0xa927, _InvalRgn, pascal, void, pointer rgn
+0xa928, _InvalRect, pascal, void, pointer rect
+0xa929, _ValidRgn, pascal, void, pointer rgn
+0xa92a, _ValidRect, pascal, void, pointer rect
+0xa92b, _GrowWindow
+0xa92c, _FindWindow
+0xa92d, _CloseWindow
+0xa92e, _SetWindowPic
+0xa92f, _GetWindowPic
+0xa930, _InitMenus, custom, void
+0xa931, _NewMenu
+0xa932, _DisposeMenu
+0xa933, _AppendMenu
+0xa934, _ClearMenuBar
+0xa935, _InsertMenu
+0xa936, _DeleteMenu
+0xa937, _DrawMenuBar
+0xa938, _HiliteMenu
+0xa939, _EnableItem
+0xa93a, _DisableItem
+0xa93b, _GetMenuBar
+0xa93c, _SetMenuBar
+0xa93d, _MenuSelect
+0xa93e, _MenuKey
+0xa93f, _GetItmIcon
+0xa940, _SetItmIcon
+0xa941, _GetItmStyle
+0xa942, _SetItmStyle
+0xa943, _GetItmMark
+0xa944, _SetItmMark
+0xa945, _CheckItem
+0xa946, _GetMenuItemText
+0xa947, _SetMenuItemText
+0xa948, _CalcMenuSize
+0xa949, _GetMenuHandle
+0xa94a, _SetMFlash
+0xa94b, _PlotIcon
+0xa94c, _FlashMenuBar
+0xa94d, _AppendResMenu
+0xa94e, _PinRect
+0xa94f, _DeltaPoint
+0xa950, _CountMItems
+0xa951, _InsertResMenu
+0xa952, _DeleteMenuItem
+0xa953, _UpdtControl
+0xa954, _NewControl
+0xa955, _DisposeControl
+0xa956, _KillControls
+0xa957, _ShowControl
+0xa958, _HideControl
+0xa959, _MoveControl
+0xa95a, _GetControlReference
+0xa95b, _SetControlReference
+0xa95c, _SizeControl
+0xa95d, _HiliteControl
+0xa95e, _GetControlTitle
+0xa95f, _SetControlTitle
+0xa960, _GetControlValue
+0xa961, _GetControlMinimum
+0xa962, _GetControlMaximum
+0xa963, _SetControlValue
+0xa964, _SetControlMinimum
+0xa965, _SetControlMaximum
+0xa966, _TestControl
+0xa967, _DragControl
+0xa968, _TrackControl
+0xa969, _DrawControls
+0xa96a, _GetControlAction
+0xa96b, _SetControlAction
+0xa96c, _FindControl
+0xa96d, _Draw1Control
+0xa96e, _Dequeue
+0xa96f, _Enqueue
+0xa970, _GetNextEvent
+0xa971, _EventAvail
+0xa972, _GetMouse, pascal, void, pointer mouseLoc
+0xa973, _StillDown, pascal, out1
+0xa974, _Button, pascal, out1
+0xa975, _TickCount
+0xa976, _GetKeys
+0xa977, _WaitMouseUp, pascal, out1
+0xa978, _UpdtDialog
+0xa979, _CouldDialog
+0xa97a, _FreeDialog
+0xa97b, _InitDialogs, pascal, void, pointer resumeProc
+0xa97c, _GetNewDialog
+0xa97d, _NewDialog
+0xa97e, _SelectDialogItemText
+0xa97f, _IsDialogEvent
+0xa980, _DialogSelect
+0xa981, _DrawDialog
+0xa982, _CloseDialog
+0xa983, _DisposeDialog
+0xa984, _FindDialogItem
+0xa985, _Alert
+0xa986, _StopAlert
+0xa987, _NoteAlert
+0xa988, _CautionAlert
+0xa989, _CouldAlert
+0xa98a, _FreeAlert
+0xa98b, _ParamText, pascal, void, pointer param0, pointer param1, pointer param2, pointer param3
+0xa98c, _ErrorSound
+0xa98d, _GetDialogItem
+0xa98e, _SetDialogItem
+0xa98f, _SetDialogItemText
+0xa990, _GetDialogItemText
+0xa991, _ModalDialog
+0xa992, _DetachResource
+0xa993, _SetResPurge
+0xa994, _CurResFile
+0xa995, _InitResources
+0xa996, _RsrcZoneInit
+0xa997, _OpenResFile
+0xa998, _UseResFile
+0xa999, _UpdateResFile
+0xa99a, _CloseResFile
+0xa99b, _SetResLoad
+0xa99c, _CountResources
+0xa99d, _GetIndResource
+0xa99e, _CountTypes
+0xa99f, _GetIndType
+0xa9a0, _GetResource, pascal, out4, dword rsrcType, word rsrcIdx
+0xa9a1, _GetNamedResource, pascal, out4, dword rsrcType, pointer name
+0xa9a2, _LoadResource, pascal, void, pointer handle
+0xa9a3, _ReleaseResource, pascal, void, pointer handle
+0xa9a4, _HomeResFile
+0xa9a5, _SizeRsrc
+0xa9a6, _GetResAttrs
+0xa9a7, _SetResAttrs
+0xa9a8, _GetResInfo
+0xa9a9, _SetResInfo
+0xa9aa, _ChangedResource
+0xa9ab, _AddResource
+0xa9ac, _AddReference
+0xa9ad, _RmveResource
+0xa9ae, _RmveReference
+0xa9af, _ResError, pascal, out2
+0xa9b0, _WriteResource
+0xa9b1, _CreateResFile
+0xa9b2, _SystemEvent
+0xa9b3, _SystemClick
+0xa9b4, _SystemTask
+0xa9b5, _SystemMenu
+0xa9b6, _OpenDeskAcc
+0xa9b7, _CloseDeskAcc
+0xa9b8, _GetPattern
+0xa9b9, _GetCursor
+0xa9ba, _GetString
+0xa9bb, _GetIcon
+0xa9bc, _GetPicture
+0xa9bd, _GetNewWindow
+0xa9be, _GetNewControl
+0xa9bf, _GetRMenu
+0xa9c0, _GetNewMBar
+0xa9c1, _UniqueID
+0xa9c2, _SysEdit
+0xa9c3, _KeyTranslate
+0xa9c4, _OpenRFPerm
+0xa9c5, _RsrcMapEntry
+0xa9c6, _SecondsToDate
+0xa9c7, _DateToSeconds
+0xa9c8, _SysBeep
+0xa9c9, _SysError, custom, void, dword errorCode @ D0, noreturn
+0xa9ca, _PutIcon
+0xa9cb, _TEGetText
+0xa9cc, _TEInit, custom, void
+0xa9cd, _TEDispose
+0xa9ce, _TETextBox
+0xa9cf, _TESetText
+0xa9d0, _TECalText
+0xa9d1, _TESetSelect
+0xa9d2, _TENew
+0xa9d3, _TEUpdate
+0xa9d4, _TEClick
+0xa9d5, _TECopy
+0xa9d6, _TECut
+0xa9d7, _TEDelete
+0xa9d8, _TEActivate
+0xa9d9, _TEDeactivate
+0xa9da, _TEIdle
+0xa9db, _TEPaste
+0xa9dc, _TEKey
+0xa9dd, _TEScroll
+0xa9de, _TEInsert
+0xa9df, _TESetAlignment
+0xa9e0, _Munger
+0xa9e1, _HandToHand
+0xa9e2, _PtrToXHand
+0xa9e3, _PtrToHand
+0xa9e4, _HandAndHand
+0xa9e5, _InitPack
+0xa9e6, _InitAllPacks
+0xa9e7, _Pack0
+0xa9e8, _Pack1
+0xa9e9, _Pack2
+0xa9ea, _Pack3
+0xa9eb, _FP68K
+0xa9ec, _Elems68K
+0xa9ed, _Pack6
+0xa9ee, _DECSTR68K
+0xa9ef, _PtrAndHand
+0xa9f0, _LoadSeg
+0xa9f1, _UnLoadSeg
+0xa9f2, _Launch
+0xa9f3, _Chain
+0xa9f4, _ExitToShell, custom, void, noreturn
+0xa9f5, _GetAppParms
+0xa9f6, _GetResFileAttrs
+0xa9f7, _SetResFileAttrs
+0xa9f8, _MethodDispatch
+0xa9f9, _InfoScrap
+0xa9fa, _UnloadScrap
+0xa9fb, _LoadScrap
+0xa9fc, _ZeroScrap
+0xa9fd, _GetScrap
+0xa9fe, _PutScrap
+0xa9ff, _Debugger, custom, void
+0xaa00, _OpenCPort
+0xaa01, _InitCPort
+0xaa02, _CloseCPort
+0xaa03, _NewPixMap
+0xaa04, _DisposePixMap
+0xaa05, _CopyPixMap
+0xaa06, _SetPortPix
+0xaa07, _NewPixPat, pascal, out4
+0xaa08, _DisposePixPat, pascal, void, pointer pixPatHandle
+0xaa09, _CopyPixPat, pascal, void, pointer srcPP, pointer dstPP
+0xaa0a, _PenPixPat, pascal, void, pointer pixPatHandle
+0xaa0b, _BackPixPat, pascal, void, pointer pixPatHandle
+0xaa0c, _GetPixPat, pascal, out4, word patID
+0xaa0d, _MakeRGBPat
+0xaa0e, _FillCRect
+0xaa0f, _FillCOval
+0xaa10, _FillCRoundRect
+0xaa11, _FillCArc
+0xaa12, _FillCRgn
+0xaa13, _FillCPoly
+0xaa14, _RGBForeColor, pascal, void, pointer color
+0xaa15, _RGBBackColor, pascal, void, pointer color
+0xaa16, _SetCPixel
+0xaa17, _GetCPixel
+0xaa18, _GetCTable
+0xaa19, _GetForeColor
+0xaa1a, _GetBackColor
+0xaa1b, _GetCCursor
+0xaa1c, _SetCCursor
+0xaa1d, _AllocCursor
+0xaa1e, _GetCIcon
+0xaa1f, _PlotCIcon
+0xaa20, _OpenCPicture
+0xaa21, _OpColor
+0xaa22, _HiliteColor
+0xaa23, _CharExtra
+0xaa24, _DisposeCTable
+0xaa25, _DisposeCIcon
+0xaa26, _DisposeCCursor
+0xaa27, _GetMaxDevice
+0xaa28, _GetCTSeed
+0xaa29, _GetDeviceList
+0xaa2a, _GetMainDevice
+0xaa2b, _GetNextDevice
+0xaa2c, _TestDeviceAttribute
+0xaa2d, _SetDeviceAttribute
+0xaa2e, _InitGDevice
+0xaa2f, _NewGDevice
+0xaa30, _DisposeGDevice
+0xaa31, _SetGDevice
+0xaa32, _GetGDevice
+0xaa33, _Color2Index
+0xaa34, _Index2Color
+0xaa35, _InvertColor
+0xaa36, _RealColor
+0xaa37, _GetSubTable
+0xaa38, _UpdatePixMap
+0xaa39, _MakeITable
+0xaa3a, _AddSearch
+0xaa3b, _AddComp
+0xaa3c, _SetClientID
+0xaa3d, _ProtectEntry
+0xaa3e, _ReserveEntry
+0xaa3f, _SetEntries
+0xaa40, _QDError
+0xaa41, _SetWinColor
+0xaa42, _GetAuxWin
+0xaa43, _SetControlColor
+0xaa44, _GetAuxiliaryControlRecord
+0xaa45, _NewCWindow
+0xaa46, _GetNewCWindow
+0xaa47, _SetDeskCPat
+0xaa48, _GetCWMgrPort
+0xaa49, _SaveEntries
+0xaa4a, _RestoreEntries
+0xaa4b, _NewColorDialog
+0xaa4c, _DelSearch
+0xaa4d, _DelComp
+0xaa4e, _SetStdCProcs
+0xaa4f, _CalcCMask
+0xaa50, _SeedCFill
+0xaa51, _CopyDeepMask
+0xaa52, _HighLevelFSDispatch
+0xaa53, _DictionaryDispatch
+0xaa54, _TextServicesDispatch
+0xaa55, _KobeMgr
+0xaa56, _SpeechRecognitionDispatch
+0xaa57, _DockingDispatch
+0xaa58, _NewKernelDispatch
+0xaa59, _MixedModeDispatch
+0xaa5a, _CodeFragmentDispatch
+0xaa5b, _PBRemoteAccess
+0xaa5c, _OCEUtils
+0xaa5d, _DigitalSignature
+0xaa5e, _OCETBDispatch
+0xaa5f, _OCEAuthentication
+0xaa60, _DeleteMCEntries
+0xaa61, _GetMCInfo
+0xaa62, _SetMCInfo
+0xaa63, _DisposeMCInfo
+0xaa64, _GetMCEntry
+0xaa65, _SetMCEntries
+0xaa66, _MenuChoice
+0xaa67, _ModalDialogMenuSetup
+0xaa68, _DialogDispatch
+0xaa69, _UserNameNotification
+0xaa6a, _DeviceMgr
+0xaa6b, _PowerPCFuture
+0xaa6c, _PenMacMgr
+0xaa6d, _LanguageMgr
+0xaa6e, _AppleGuideDispatch
+0xaa90, _InitPalettes
+0xaa91, _NewPalette
+0xaa92, _GetNewPalette
+0xaa93, _DisposePalette
+0xaa94, _ActivatePalette
+0xaa95, _SetPalette
+0xaa96, _GetPalette
+0xaa97, _PmForeColor
+0xaa98, _PmBackColor
+0xaa99, _AnimateEntry
+0xaa9a, _AnimatePalette
+0xaa9b, _GetEntryColor
+0xaa9c, _SetEntryColor
+0xaa9d, _GetEntryUsage
+0xaa9e, _SetEntryUsage
+0xaa9f, _CTab2Palette
+0xaaa0, _Palette2CTab
+0xaaa1, _CopyPalette
+0xaaa2, _PaletteDispatch
+0xaaa3, _CodecDispatch
+0xaaa4, _ALMDispatch
+0xaaaa, _QuickTimeDispatch
+0xaadb, _CursorDeviceDispatch
+0xaadd, _HumanInterfaceUtilsDispatch
+0xaaee, _AppleScript
+0xaaf0, _PCCardDispatch
+0xaaf1, _ATAMgr
+0xaaf2, _ControlStripDispatch
+0xaaf3, _ExpansionBusDispatch
+0xaaf4, _InterruptMgr
+0xaafa, _InitApplication
+0xaafb, _CleanupApplication
+0xaafe, _MixedModeMagic
+0xab00, _BitBlt
+0xab01, _BitsToMap
+0xab02, _BitsToPix
+0xab03, _Jackson
+0xab04, _ColorMap
+0xab05, _CopyHandle
+0xab06, _CullPoints
+0xab07, _PutPicByte
+0xab08, _PutPicOp
+0xab09, _DrawArc
+0xab0a, _DrawLine
+0xab0b, _DrawSlab
+0xab0c, _FastSlabMode
+0xab0d, _GetSeek
+0xab0e, _MakeScaleTbl
+0xab0f, _CheckPic
+0xab10, _DoLine
+0xab11, _OldPatToNew
+0xab12, _PackRgn
+0xab13, _PatConvert
+0xab14, _PatDither
+0xab15, _PatExpand
+0xab16, _PInit
+0xab17, _PortToMap
+0xab18, _PushVerb
+0xab19, _PutLine
+0xab1a, _PutOval
+0xab1b, _PutRgn
+0xab1c, _NewTempBuffer
+0xab1d, _QDExtensions
+0xab1e, _DisposeTempBuffer
+0xab1f, _RgnBlit
+0xab20, _RgnOp
+0xab21, _RSect
+0xab22, _SeekRgn
+0xab23, _SetFillPat
+0xab24, _SetUpStretch
+0xab25, _SlabMode
+0xab26, _SortPoints
+0xab27, _StretchBits
+0xab28, _StdDevLoop
+0xab29, _TrimRect
+0xab2a, _XorSlab
+0xab2b, _ExTblPtr
+0xab2d, _NewTempHandle
+0xab2e, _PatExTbl
+0xab30, _bMAIN0
+0xab31, _bMAIN1
+0xab32, _bMAIN2
+0xab33, _bMAIN3
+0xab34, _bSETUP8
+0xab35, _bMAIN9
+0xab36, _bSETUP10
+0xab37, _bMAIN11
+0xab38, _bXMAIN8
+0xab39, _bXMAIN9
+0xab3a, _bXMAIN10
+0xab3b, _bXMAIN11
+0xab3c, _bcMain0
+0xab3d, _bcMain1
+0xab3e, _bHilite
+0xab3f, _bcMain3
+0xab40, _bEND0
+0xab41, _bEND1
+0xab42, _bEND2
+0xab43, _bEND3
+0xab44, _bLONG8
+0xab45, _bEND9
+0xab46, _bEND10
+0xab47, _bEND11
+0xab48, _bXLONG8
+0xab49, _bXEND9
+0xab4a, _bXEND10
+0xab4b, _bXEND11
+0xab4c, _bcEnd0
+0xab4d, _bcEnd1
+0xab4e, _bSlowHilite
+0xab4f, _bcEnd
+0xab50, _bAvg
+0xab51, _bAddPin
+0xab52, _bAddOver
+0xab53, _bSubPin
+0xab54, _bTransparent
+0xab55, _bMax
+0xab56, _bSubOver
+0xab57, _bMin
+0xab58, _bSetup0
+0xab59, _bLeft0
+0xab5a, _rMASK0
+0xab5b, _rMASK1
+0xab5c, _rMASK2
+0xab5d, _rMASK3
+0xab5e, _rMASK8
+0xab5f, _rMASK9
+0xab60, _rMASK10
+0xab61, _rMASK11
+0xab62, _rXMASK8
+0xab63, _rXMASK9
+0xab64, _rXMASK10
+0xab65, _rXMASK11
+0xab66, _rAvg
+0xab67, _rAddPin
+0xab68, _rAddOver
+0xab69, _rSubPin
+0xab6a, _rTransparent
+0xab6b, _rMax
+0xab6c, _rSubOver
+0xab6d, _rMin
+0xab6e, _rcMask0
+0xab6f, _rcMask1
+0xab70, _rSlowHilite
+0xab71, _rcMask3
+0xab72, _rHilite
+0xab73, _stMASK0
+0xab74, _stMASK1
+0xab75, _stMASK2
+0xab76, _stMASK3
+0xab77, _stAvg
+0xab78, _stAddPin
+0xab79, _stAddOver
+0xab7a, _stSubPin
+0xab7b, _stTransparent
+0xab7c, _stMax
+0xab7d, _stSubOver
+0xab7e, _stMin
+0xab7f, _stHilite
+0xab80, _slMASK8
+0xab81, _slMASK9
+0xab82, _slMASK10
+0xab83, _slMASK11
+0xab84, _slXMASK8
+0xab85, _slXMASK9
+0xab86, _slXMASK10
+0xab87, _slXMASK11
+0xab88, _slAvg
+0xab89, _slAddPin
+0xab8a, _slAddOver
+0xab8b, _slSubPin
+0xab8c, _slTransparent
+0xab8d, _slMax
+0xab8e, _slSubOver
+0xab8f, _slMin
+0xab90, _slHilite
+0xab91, _ITabMatch
+0xab92, _ColorThing
+0xab93, _Pollack
+0xab94, _AllocRunBuf
+0xab95, _InitRgn
+0xab96, _ScaleBlt
+0xab97, _stNoStack
+0xab98, _BlitCase
+0xab99, _stScanLoop
+0xab9a, _PicItem1
+0xab9b, _MakeGrayITab
+0xab9c, _FastLine
+0xab9d, _FastSlant
+0xab9e, _BitsDevLoop
+0xaba0, _rArith16Tab
+0xaba1, _rArith32Tab
+0xaba2, _rHiliteTab
+0xaba3, _gsRunTbl
+0xaba4, _gsExpTbl
+0xaba5, _gsSeekTbl
+0xaba6, _stArith16Tab
+0xaba7, _stArith32Tab
+0xaba8, _stColorTab
+0xaba9, _stGrayTab
+0xabaa, _stSearchTab
+0xabab, _ScaleIndToInd
+0xabac, _scIndTab1
+0xabad, _scIndTab2
+0xabae, _scIndTab4
+0xabaf, _scIndTab8
+0xabb0, _scIndTab16
+0xabb1, _scIndTab32
+0xabb2, _scDirTab1
+0xabb3, _scDirTab2
+0xabb4, _scDirTab4
+0xabb5, _scDirTab8
+0xabb6, _scDirTab16
+0xabb7, _scDirTab32
+0xabb8, _bArith16Tab
+0xabb9, _bArith32Tab
+0xabba, _bHiliteTab
+0xabbb, _bArith16Setup
+0xabbc, _bArith32Setup
+0xabbd, _slArith16Tab
+0xabbe, _slArith32Tab
+0xabbf, _32QD
+0xabc0, _QDAlphaDispatch
+0xabc1, _QDStreamToMask
+0xabc2, _QTMatrixMathDispatch
+0xabc3, _NQDMisc
+0xabc4, _GetPMData
+0xabc5, _32QD
+0xabc6, _32QD
+0xabc7, _32QD
+0xabc8, _StdOpcodeProc
+0xabc9, _IconDispatch
+0xabca, _DeviceLoop
+0xabcc, _PBBlockMove
+0xabcd, _SnappingTurk
+0xabce, _UnicodeMgr
+0xabcf, _ProcessMgr
+0xabea, _ModemMgr
+0xabeb, _DisplayDispatch
+0xabec, _ButtonMgr
+0xabed, _DragDispatch
+0xabee, _ColorSync
+0xabef, _TTSMgr
+0xabf0, _AROSE
+0xabf1, _GestaltValueDispatch
+0xabf2, _ThreadDispatch
+0xabf3, _EddyTrap
+0xabf4, _XTNDMgr
+0xabf5, _DSPManager
+0xabf6, _CollectionMgr
+0xabf7, _SynchIdleTime
+0xabf8, _StdOpcodeProc
+0xabf9, _AUXDispatch
+0xabfa, _AUXSysCall
+0xabfb, _MessageMgr
+0xabfc, _TranslationDispatch
+0xabfd, _TouchStone
+0xabfe, _GXPrinting
+0xabff, _DebugStr

@@ -42,7 +42,29 @@ from binaryninja.enums import (Endianness, BranchType, InstructionTextTokenType,
         LowLevelILOperation, LowLevelILFlagCondition, FlagRole, SegmentFlag,
         ImplicitRegisterExtend, SymbolType)
 from binaryninja import BinaryViewType
-from .syscalls import SYSCALLS, FP68K_TYPES, FP68K_OPS
+from .syscalls import FP68K_TYPES, FP68K_OPS
+
+SYSCALL_ID_TO_NAME = {}
+SYSCALLS = {}
+__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+with open(os.path.join(__location__, "m68k_mac_syscalls"),"r") as f:
+    for line in f:
+        if line.startswith('#'):
+            continue
+        l = [i.strip() for i in line.split(",")]
+        SYSCALL_ID_TO_NAME[int(l[0],0)] = l[1]
+        SYSCALLS[l[1]] = l[2:]
+GHIDRA_TYPE_TO_SIZE = {
+    'byte': 1,
+    'dword': 4,
+    'word': 2,
+    'pointer': 4
+}
+def convert_ghidra_reg(r):
+    r = r.lower()
+    if len(r) == 3:
+        r = r[:2] + "." + r[2:]
+    return r
 
 # Shift syles
 SHIFT_SYLE_ARITHMETIC = 0,
@@ -897,6 +919,7 @@ class M68000(Architecture):
         'a4.w':  RegisterInfo('a4', 2),
         'a5.w':  RegisterInfo('a5', 2),
         'a6.w':  RegisterInfo('a6', 2),
+        'sp.w':  RegisterInfo('sp', 2),
         'a0.b':  RegisterInfo('a0', 1),
         'a1.b':  RegisterInfo('a1', 1),
         'a2.b':  RegisterInfo('a2', 1),
@@ -904,6 +927,7 @@ class M68000(Architecture):
         'a4.b':  RegisterInfo('a4', 1),
         'a5.b':  RegisterInfo('a5', 1),
         'a6.b':  RegisterInfo('a6', 1),
+        'sp.b':  RegisterInfo('sp', 1),
         'sr':    RegisterInfo('sr', 2),
         'ccr':   RegisterInfo('sr', 1),
 
@@ -935,8 +959,8 @@ class M68000(Architecture):
     }
     stack_pointer = 'sp'
     flags = ['x', 'n', 'z', 'v', 'c']
-    flag_write_types = ['', '*', 'nzvc']
-    flags_written_by_flag_write_types = {
+    flag_write_types = ['*', 'nzvc']
+    flags_written_by_flag_write_type = {
         '*': ['x', 'n', 'z', 'v', 'c'],
         'nzvc': ['n', 'z', 'v', 'c'],
     }
@@ -967,13 +991,9 @@ class M68000(Architecture):
     }
     memory_indirect = False
     movem_store_decremented = False
+
     # TODO: actual types
-    intrinsics = {
-        '_GetResource': IntrinsicInfo([IntrinsicInput(Type.int(4)), IntrinsicInput(Type.int(2))], [Type.int(4)]),
-        '_GetTrapAddress': IntrinsicInfo([IntrinsicInput(Type.int(4)), IntrinsicInput(Type.int(2))], [Type.int(4)]),
-        '_SetTrapAddress': IntrinsicInfo([IntrinsicInput(Type.int(4)), IntrinsicInput(Type.int(2))], []),
-        '_GetHandleSize': IntrinsicInfo([IntrinsicInput(Type.int(4))], [Type.int(4)])
-    }
+    intrinsics = {i: IntrinsicInfo([], []) for i in SYSCALLS}
 
     def decode_effective_address(self, mode, register, data, size=None):
         mode &= 0x07
@@ -1649,8 +1669,8 @@ class M68000(Architecture):
         elif operation_code == 0xa:
             # (unassigned, reserved)
             syscall_val = struct.unpack_from('>H', data, 0)[0]
-            if syscall_val in SYSCALLS:
-                instr = '_'+SYSCALLS[syscall_val]
+            if syscall_val in SYSCALL_ID_TO_NAME:
+                instr = SYSCALL_ID_TO_NAME[syscall_val]
             else:
                 instr = 'syscall'
                 source = OpImmediate(SIZE_WORD, syscall_val)
@@ -3184,18 +3204,63 @@ class M68000(Architecture):
             il.append(il.system_call())
         elif instr in ('bgnd', 'nop', 'reset', 'stop'):
             il.append(il.nop())
-        elif instr[0] == '_' and instr == '_GetResource':
-            temp = LLIL_TEMP(0)
-            il.append(il.intrinsic([ILRegister(il.arch, temp)], instr, [il.pop(2), il.pop(4)]))
-            il.append(il.store(4, il.reg(4, 'sp'), il.reg(4, temp)))
-        elif instr[0] == '_' and instr == '_GetTrapAddress':
-            il.append(il.intrinsic([il.reg(4, 'a0')], instr, [il.reg(2, 'd0.w')]))
-        elif instr[0] == '_' and instr == '_SetTrapAddress':
-            il.append(il.intrinsic([], instr, [il.reg(4, 'a0'), il.reg(2, 'd0.w')]))
-        elif instr[0] == '_' and instr == '_GetHandleSize':
-            il.append(il.intrinsic([il.reg(4, 'd0')], instr, [il.reg(4, 'a0')]))
-        elif instr[0] == '_' and instr in ['_ExitToShell', '_SysError']:
-            il.append(il.no_ret())
+        elif instr[0] == '_':
+            l = SYSCALLS[instr]
+            if len(l) == 0:
+                log_error('0x{:x}: syscall {} unimplemented'.format(il.current_address, instr))
+                il.append(il.unimplemented())
+            else:
+                calling_convention = l[0]
+                return_type = l[1]
+                params_and_other = l[2:]
+                if calling_convention == 'pascal':
+                    inputs = []
+                    # all this trouble to have the parameters in the correct order...
+                    cleanup_size = 0
+                    for i in params_and_other:
+                        if ' ' in i:
+                            cleanup_size += GHIDRA_TYPE_TO_SIZE[i.split()[0]]
+                    stackptr = 0
+                    for i in params_and_other:
+                        if ' ' in i:
+                            param_size = GHIDRA_TYPE_TO_SIZE[i.split()[0]]
+                            inputs.append(il.load(param_size, il.add(4, il.reg(4, 'sp'), il.const(4, cleanup_size - param_size - stackptr))))
+                            stackptr += param_size
+                    if return_type == 'void':
+                        il.append(il.intrinsic([], instr, inputs))
+                        if cleanup_size > 0:
+                            il.append(il.set_reg(4, 'sp', il.add(4, il.reg(4, 'sp'), il.const(4, cleanup_size))))
+                    elif return_type[:3] == 'out':
+                        return_size = int(return_type[3:])
+                        temp = LLIL_TEMP(il.temp_reg_count)
+                        il.append(il.intrinsic([ILRegister(il.arch, temp)], instr, inputs))
+                        if cleanup_size > 0:
+                            il.append(il.set_reg(4, 'sp', il.add(4, il.reg(4, 'sp'), il.const(4, cleanup_size))))
+                        il.append(il.store(return_size, il.reg(4, 'sp'), il.reg(4, temp)))
+                    else:
+                        log_error("unknown return {}".format(return_type))
+                elif calling_convention == 'custom':
+                    # TODO: stack storage
+                    inputs = []
+                    outputs = []
+                    for i in params_and_other:
+                        if '@' in i:
+                            input_size = GHIDRA_TYPE_TO_SIZE[i.split()[0].strip()]
+                            input_reg = convert_ghidra_reg(i.split('@')[1].strip())
+                            inputs.append(il.reg(input_size, input_reg))
+                    if return_type != 'void':
+                        return_size = GHIDRA_TYPE_TO_SIZE[return_type.split('@')[0].strip()]
+                        return_reg = convert_ghidra_reg(return_type.split('@')[1].strip())
+                        temp = LLIL_TEMP(0)
+                        outputs = [ILRegister(il.arch, temp)]
+                    il.append(il.intrinsic(outputs, instr, inputs))
+                    # TODO: directly assigning register from intrinsic doesn't work?
+                    if return_type != 'void':
+                        il.append(il.set_reg(return_size, return_reg, il.reg(return_size, temp)))
+                else:
+                    log_error('Unknown calling convention for {}'.format(l))
+                if 'noreturn' in params_and_other:
+                    il.append(il.no_ret())
         else:
             il.append(il.unimplemented())
 
