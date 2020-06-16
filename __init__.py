@@ -876,7 +876,7 @@ ConditionMapping = {
 class M68000(Architecture):
     name = "M68000"
     address_size = 3
-    default_int_size = 4
+    default_int_size = 2
     max_instr_length = 22
     endianness = Endianness.BigEndian
     regs = {
@@ -991,6 +991,7 @@ class M68000(Architecture):
     }
     memory_indirect = False
     movem_store_decremented = False
+    global_regs = ['a5']
 
     # TODO: actual types
     intrinsics = {i: IntrinsicInfo([], []) for i in SYSCALLS}
@@ -3207,7 +3208,7 @@ class M68000(Architecture):
         elif instr[0] == '_':
             l = SYSCALLS[instr]
             if len(l) == 0:
-                log_error('0x{:x}: syscall {} unimplemented'.format(il.current_address, instr))
+                #log_error('0x{:x}: syscall {} unimplemented'.format(il.current_address, instr))
                 il.append(il.unimplemented())
             else:
                 calling_convention = l[0]
@@ -3721,6 +3722,7 @@ class CCallingConvention(CallingConvention):
     name = "C"
     int_arg_regs = []
     int_return_reg = 'd0'
+    global_pointer_reg = 'a5'
 
 arch = Architecture['M68000']
 arch.register_calling_convention(CCallingConvention(arch, 'c'))
