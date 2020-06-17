@@ -520,7 +520,7 @@ class OpRegisterIndirectDisplacement:
         else:
             return il.add(4,
                 il.reg(4, self.reg),
-                il.const(2, self.offset)
+                il.const(4, self.offset) # implcitly sign extended
             )
 
     def get_source_il(self, il):
