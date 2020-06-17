@@ -3208,12 +3208,13 @@ class M68000(Architecture):
         elif instr[0] == '_':
             l = SYSCALLS[instr]
             if len(l) == 0:
-                #log_error('0x{:x}: syscall {} unimplemented'.format(il.current_address, instr))
+                log_error('0x{:x}: syscall {} unimplemented'.format(il.current_address, instr))
                 il.append(il.unimplemented())
             else:
                 calling_convention = l[0]
                 return_type = l[1]
                 params_and_other = l[2:]
+                # there doesn't seem to be any memory alignment...
                 if calling_convention == 'pascal':
                     inputs = []
                     # all this trouble to have the parameters in the correct order...
