@@ -42,7 +42,6 @@ from binaryninja.enums import (Endianness, BranchType, InstructionTextTokenType,
         LowLevelILOperation, LowLevelILFlagCondition, FlagRole, SegmentFlag,
         ImplicitRegisterExtend, SymbolType)
 from binaryninja import BinaryViewType
-from .syscalls import FP68K_TYPES, FP68K_OPS
 
 SYSCALL_ID_TO_NAME = {}
 SYSCALLS = {}
@@ -54,6 +53,14 @@ with open(os.path.join(__location__, "m68k_mac_syscalls"),"r") as f:
         l = [i.strip() for i in line.split(",")]
         SYSCALL_ID_TO_NAME[int(l[0],0)] = l[1]
         SYSCALLS[l[1]] = l[2:]
+FP68K = {}
+with open(os.path.join(__location__, "m68k_mac_fp68k"),"r") as f:
+    for line in f:
+        if line.startswith('#'):
+            continue
+        l = [i.strip() for i in line.split(",")]
+        FP68K[int(l[0],0)] = (l[1], int(l[2]))
+
 GHIDRA_TYPE_TO_SIZE = {
     'byte': 1,
     'dword': 4,
@@ -65,6 +72,15 @@ def convert_ghidra_reg(r):
     if len(r) == 3:
         r = r[:2] + "." + r[2:]
     return r
+def u16(x):
+    return struct.unpack('>H', x)[0]
+
+# TODO: actual types
+INTRINSICS = {}
+for i in SYSCALLS:
+    INTRINSICS[i] = IntrinsicInfo([], [])
+for i in FP68K:
+    INTRINSICS[FP68K[i][0]] = IntrinsicInfo([], [])
 
 # Shift syles
 SHIFT_SYLE_ARITHMETIC = 0,
@@ -993,8 +1009,7 @@ class M68000(Architecture):
     movem_store_decremented = False
     global_regs = ['a5']
 
-    # TODO: actual types
-    intrinsics = {i: IntrinsicInfo([], []) for i in SYSCALLS}
+    intrinsics = INTRINSICS
 
     def decode_effective_address(self, mode, register, data, size=None):
         mode &= 0x07
@@ -3208,7 +3223,26 @@ class M68000(Architecture):
             il.append(il.nop())
         elif instr[0] == '_':
             l = SYSCALLS[instr]
-            if len(l) == 0:
+            if instr == '_FP68K':
+                view = il.source_function.view
+                addr = il.current_address
+                selector_instr = view.read(addr-4, 4)
+                if selector_instr[:2] == b'\x3f\x3c': # move.w #$selector, -(sp)
+                    selector = u16(selector_instr[2:])
+                elif selector_instr[2:] == b'\x42\x67': # clr.w -(sp)
+                    selector = 0
+                else:
+                    print('could not find selector: {} {}'.format(hex(addr), hex(il.current_address)))
+                    il.append(il.unimplemented())
+                    return
+                if selector in FP68K:
+                    name, num_args = FP68K[selector]
+                    il.append(il.set_reg(4, 'sp', il.add(4, il.reg(4, 'sp'), il.const(4, 2)))) # skip selector
+                    il.append(il.intrinsic([], name, [il.pop(4) for i in range(num_args)]))
+                else:
+                    print("{}: unknown FP68K selector {:04x}".format(hex(il.current_address), selector))
+                    il.append(il.unimplemented())
+            elif len(l) == 0:
                 log_error('0x{:x}: syscall {} unimplemented'.format(il.current_address, instr))
                 il.append(il.unimplemented())
             else:
