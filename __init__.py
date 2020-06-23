@@ -1673,6 +1673,7 @@ class M68000(Architecture):
             if syscall_val in SYSCALL_ID_TO_NAME:
                 instr = SYSCALL_ID_TO_NAME[syscall_val]
             else:
+                print("unknown syscall {:04x}".format(syscall_val))
                 instr = 'syscall'
                 source = OpImmediate(SIZE_WORD, syscall_val)
             length = 2
