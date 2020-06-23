@@ -59,7 +59,7 @@ with open(os.path.join(__location__, "m68k_mac_fp68k"),"r") as f:
         if line.startswith('#'):
             continue
         l = [i.strip() for i in line.split(",")]
-        FP68K[int(l[0],0)] = (l[1], int(l[2]))
+        FP68K[int(l[0],0)] = l[1:]
 
 GHIDRA_TYPE_TO_SIZE = {
     'byte': 1,
@@ -3236,10 +3236,12 @@ class M68000(Architecture):
                     il.append(il.unimplemented())
                     return
                 if selector in FP68K:
-                    name, num_args = FP68K[selector]
+                    name, comment, num_args = FP68K[selector]
+                    num_args = int(num_args)
                     il.append(il.set_reg(4, 'sp', il.add(4, il.reg(4, 'sp'), il.const(4, 2)))) # skip selector
                     # TODO: flags
                     il.append(il.intrinsic([], name, [il.pop(4) for i in range(num_args)]))
+                    il.source_function.set_comment_at(addr, comment)
                 else:
                     print("{}: unknown FP68K selector {:04x}".format(hex(il.current_address), selector))
                     il.append(il.unimplemented())
