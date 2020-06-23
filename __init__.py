@@ -3238,6 +3238,7 @@ class M68000(Architecture):
                 if selector in FP68K:
                     name, num_args = FP68K[selector]
                     il.append(il.set_reg(4, 'sp', il.add(4, il.reg(4, 'sp'), il.const(4, 2)))) # skip selector
+                    # TODO: flags
                     il.append(il.intrinsic([], name, [il.pop(4) for i in range(num_args)]))
                 else:
                     print("{}: unknown FP68K selector {:04x}".format(hex(il.current_address), selector))
