@@ -891,7 +891,7 @@ ConditionMapping = {
 
 class M68000(Architecture):
     name = "M68000"
-    address_size = 3
+    address_size = 4
     default_int_size = 2
     max_instr_length = 22
     endianness = Endianness.BigEndian
