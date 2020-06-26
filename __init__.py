@@ -891,7 +891,7 @@ ConditionMapping = {
 
 class M68000(Architecture):
     name = "M68000"
-    address_size = 4
+    address_size = 4 # technically 3, but pointers are 4 bytes (needed for correct stack offsets for function args)
     default_int_size = 2
     max_instr_length = 22
     endianness = Endianness.BigEndian
